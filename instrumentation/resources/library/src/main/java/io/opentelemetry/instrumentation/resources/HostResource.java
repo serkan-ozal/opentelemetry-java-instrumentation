@@ -10,6 +10,7 @@ import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.semconv.SchemaUrls;
+import java.lang.reflect.Field;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -27,6 +28,20 @@ public final class HostResource {
     return INSTANCE;
   }
 
+  private static void resetInetAddress() {
+    try {
+      Field resolverField = InetAddress.class.getDeclaredField("resolver");
+      try {
+        resolverField.setAccessible(true);
+        resolverField.set(InetAddress.class, null);
+      } finally {
+        resolverField.setAccessible(false);
+      }
+    } catch (NoSuchFieldException | IllegalAccessException e) {
+      // Ignore
+    }
+  }
+
   // Visible for testing
   static Resource buildResource() {
     AttributesBuilder attributes = Attributes.builder();
@@ -34,6 +49,8 @@ public final class HostResource {
       attributes.put(HOST_NAME, InetAddress.getLocalHost().getHostName());
     } catch (UnknownHostException e) {
       // Ignore
+    } finally {
+      resetInetAddress();
     }
     String hostArch = null;
     try {
